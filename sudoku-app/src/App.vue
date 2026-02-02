@@ -81,6 +81,8 @@ const fillGrid = (board) => {
 
 const generateSudoku = () => {
   gameStarted.value = true;
+  selectedCell.value = { r: null, c: null };
+  selectedNumber.value = null;
   grid.value = initGrid();
   initialGrid.value = Array.from({ length: 9 }, () => Array(9).fill(false));
   const tempBoard = Array.from({ length: 9 }, () => Array(9).fill(0));
@@ -116,12 +118,14 @@ const solve = () => {
 };
 
 const selectedCell = ref({ r: null, c: null });
+const selectedNumber = ref(null); // Número seleccionado para resaltar
+
 
 // Función para seleccionar una celda
 const selectCell = (r, c) => {
-  if (!initialGrid.value[r][c]) { // Solo seleccionar si no es fija
-    selectedCell.value = { r, c };
-  }
+  // Permitir seleccionar todas las celdas (fijas y no fijas)
+  selectedCell.value = { r, c };
+  selectedNumber.value = grid.value[r][c] || null; // Guardar el número seleccionado
 };
 
 // Función para poner un número desde el teclado externo
@@ -129,6 +133,7 @@ const setNumber = (num) => {
   const { r, c } = selectedCell.value;
   if (r !== null && c !== null) {
     grid.value[r][c] = num;
+    selectedNumber.value = num;
   }
 };
 
@@ -137,6 +142,7 @@ const eraseCell = () => {
   const { r, c } = selectedCell.value;
   if (r !== null && c !== null) {
     grid.value[r][c] = 0;
+    selectedNumber.value = null;
   }
 };
 
@@ -195,7 +201,10 @@ onBeforeUnmount(() => {
                 'cell', 
                 { 'is-fixed': initialGrid[rowIndex][colIndex] },
                 { 'is-invalid': !initialGrid[rowIndex][colIndex] && hasConflict(rowIndex, colIndex) },
-                { 'is-selected': selectedCell.r === rowIndex && selectedCell.c === colIndex }
+                { 'is-selected': selectedCell.r === rowIndex && selectedCell.c === colIndex },
+                { 'highlight-row': selectedCell.r === rowIndex && selectedCell.r !== null },
+                { 'highlight-col': selectedCell.c === colIndex && selectedCell.c !== null },
+                { 'highlight-same-number': selectedNumber && grid[rowIndex][colIndex] === selectedNumber && grid[rowIndex][colIndex] !== 0 }
               ]"
               @click="selectCell(rowIndex, colIndex)"
             >
@@ -325,6 +334,22 @@ h1 {
   background-color: #e3f2fd !important;
   outline: 2px solid #2196f3;
   z-index: 1;
+}
+
+/* Resaltar fila de la celda seleccionada */
+.highlight-row {
+  background-color: #ddf1fc !important;
+}
+
+/* Resaltar columna de la celda seleccionada */
+.highlight-col {
+  background-color: #ddf1fc !important;
+}
+
+/* Resaltar números iguales al seleccionado */
+.highlight-same-number {
+  background-color: #fff3cd !important;
+  font-weight: bold;
 }
 
 /* Celda con error */
