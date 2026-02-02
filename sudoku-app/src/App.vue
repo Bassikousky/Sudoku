@@ -83,7 +83,11 @@ const generateSudoku = () => {
   gameStarted.value = true;
   selectedCell.value = { r: null, c: null };
   selectedNumber.value = null;
+  annotationMode.value = false;
   grid.value = initGrid();
+  annotations.value = Array.from({ length: 9 }, () => 
+    Array.from({ length: 9 }, () => new Set())
+  );
   initialGrid.value = Array.from({ length: 9 }, () => Array(9).fill(false));
   const tempBoard = Array.from({ length: 9 }, () => Array(9).fill(0));
   fillGrid(tempBoard);
@@ -119,6 +123,17 @@ const solve = () => {
 
 const selectedCell = ref({ r: null, c: null });
 const selectedNumber = ref(null); // Número seleccionado para resaltar
+const annotationMode = ref(false); // Modo anotación activado
+const annotations = ref(Array.from({ length: 9 }, () => 
+  Array.from({ length: 9 }, () => new Set())
+)); // Anotaciones por celda
+
+// Función para obtener la posición de una anotación en la grid 3x3
+const getAnnotationPosition = (num) => {
+  const col = (num - 1) % 3;
+  const row = Math.floor((num - 1) / 3);
+  return [row, col];
+};
 
 
 // Función para seleccionar una celda
@@ -132,8 +147,19 @@ const selectCell = (r, c) => {
 const setNumber = (num) => {
   const { r, c } = selectedCell.value;
   if (r !== null && c !== null) {
-    grid.value[r][c] = num;
-    selectedNumber.value = num;
+    if (annotationMode.value) {
+      // Modo anotación: agregar o quitar anotación
+      if (annotations.value[r][c].has(num)) {
+        annotations.value[r][c].delete(num);
+      } else {
+        annotations.value[r][c].add(num);
+      }
+    } else {
+      // Modo normal: poner número y limpiar anotaciones
+      grid.value[r][c] = num;
+      annotations.value[r][c].clear();
+      selectedNumber.value = num;
+    }
   }
 };
 
@@ -141,8 +167,15 @@ const setNumber = (num) => {
 const eraseCell = () => {
   const { r, c } = selectedCell.value;
   if (r !== null && c !== null) {
-    grid.value[r][c] = 0;
-    selectedNumber.value = null;
+    if (annotationMode.value) {
+      // Modo anotación: limpiar todas las anotaciones
+      annotations.value[r][c].clear();
+    } else {
+      // Modo normal: limpiar número y anotaciones
+      grid.value[r][c] = 0;
+      annotations.value[r][c].clear();
+      selectedNumber.value = null;
+    }
   }
 };
 
@@ -208,18 +241,39 @@ onBeforeUnmount(() => {
               ]"
               @click="selectCell(rowIndex, colIndex)"
             >
-              <!-- Si el valor es 0, no mostramos nada -->
-              {{ cell !== 0 ? cell : '' }}
+              <!-- Mostrar número principal -->
+              <div v-if="cell !== 0" class="cell-main-number">{{ cell }}</div>
+              
+              <!-- Mostrar anotaciones en grid 3x3 -->
+              <div v-else class="annotations-grid">
+                <div v-for="annotNum in 9" :key="annotNum" class="annotation-cell">
+                  <div v-if="annotations[rowIndex][colIndex].has(annotNum)" class="annotation-number">
+                    {{ annotNum }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- TECLADO NUMÉRICO -->
-        <div class="keypad">
-          <button v-for="n in 9" :key="n" @click="setNumber(n)">
-            {{ n }}
+        <!-- TECLADO NUMÉRICO Y BOTONES -->
+        <div class="input-controls">
+          <!-- Botón de modo anotación -->
+          <button 
+            @click="annotationMode = !annotationMode"
+            :class="['btn-annotation', { active: annotationMode }]"
+            title="Modo anotación (lápiz)"
+          >
+            ✏️
           </button>
-          <button @click="eraseCell" class="btn-erase">Borrar</button>
+
+          <!-- TECLADO NUMÉRICO -->
+          <div class="keypad">
+            <button v-for="n in 9" :key="n" @click="setNumber(n)">
+              {{ n }}
+            </button>
+            <button @click="eraseCell" class="btn-erase">Borrar</button>
+          </div>
         </div>
       </div>
 
@@ -307,6 +361,37 @@ h1 {
   user-select: none;
   background: white;
   transition: background 0.2s;
+  position: relative;
+}
+
+/* Número principal en la celda */
+.cell-main-number {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Grid de anotaciones 3x3 */
+.annotations-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  gap: 0px;
+  padding: 0px;
+}
+
+.annotation-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+}
+
+.annotation-number {
+  color: #999;
+  font-size: 0.6rem;
+  font-weight: normal;
 }
 
 .cell:nth-child(3n) {
@@ -381,6 +466,37 @@ h1 {
   flex-wrap: wrap;
   justify-content: center;
   margin-bottom: 30px;
+}
+
+/* Controles de entrada (lápiz + teclado) */
+.input-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+}
+
+/* Botón de lápiz para anotaciones */
+.btn-annotation {
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+  background: #f8f9fa;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-annotation:hover {
+  background: #e9ecef;
+  border-color: #999;
+}
+
+.btn-annotation.active {
+  background: #fff3cd;
+  border-color: #ffc107;
+  box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
 }
 
 /* Teclado */
